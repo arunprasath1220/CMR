@@ -119,24 +119,39 @@ function Dashboard() {
         {/* Top summary cards */}
         <div className="summary-grid">
           <div className="summary-card">
-            <p className="summary-label">Reported</p>
-            <h2>{summary.reported}</h2>
+            <div>
+              <p className="summary-label">Reported</p>
+              <h2>{summary.reported}</h2>
+            </div>
+            <div className="summary-icon">⚠️</div>
           </div>
           <div className="summary-card">
-            <p className="summary-label">Assigned</p>
-            <h2>{summary.assigned}</h2>
+            <div>
+              <p className="summary-label">Assigned</p>
+              <h2>{summary.assigned}</h2>
+            </div>
+            <div className="summary-icon">⏱️</div>
           </div>
           <div className="summary-card">
-            <p className="summary-label">In Progress</p>
-            <h2>{summary.inProgress}</h2>
+            <div>
+              <p className="summary-label">In Progress</p>
+              <h2>{summary.inProgress}</h2>
+            </div>
+            <div className="summary-icon">🔧</div>
           </div>
           <div className="summary-card">
-            <p className="summary-label">Pending</p>
-            <h2>{summary.pending}</h2>
+            <div>
+              <p className="summary-label">Pending</p>
+              <h2>{summary.pending}</h2>
+            </div>
+            <div className="summary-icon">📋</div>
           </div>
           <div className="summary-card">
-            <p className="summary-label">Verified</p>
-            <h2>{summary.verified}</h2>
+            <div>
+              <p className="summary-label">Verified</p>
+              <h2>{summary.verified}</h2>
+            </div>
+            <div className="summary-icon">✓</div>
           </div>
         </div>
 
