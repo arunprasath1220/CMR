@@ -1,15 +1,14 @@
-import './App.css';
-import NavBar from './components/NavBar';
-import { Routes, Route } from 'react-router-dom';
-import Dashboard from './pages/Dashboard';
-import Graph from './pages/Graph';
-import History from './pages/History';
+import { Routes, Route } from "react-router-dom";
+import NavBar from "./components/NavBar";
+import Dashboard from "./pages/Dashboard";
+import Graph from "./pages/Graph";
+import History from "./pages/History";
 
 function App() {
   return (
-    <div className="app">
+    <div className="app-shell">
       <NavBar />
-      <main className="content">
+      <main className="page-shell">
         <Routes>
           <Route path="/" element={<Dashboard />} />
           <Route path="/graph" element={<Graph />} />
