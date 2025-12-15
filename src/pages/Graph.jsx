@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
+import "./Graph.css";
 
 const DUMMY_POINTS = [
   { id: 1, x: 10, y: 20, severity: "critical", status: "open", ward: "North", date: "2025-12-10" },
@@ -8,53 +9,6 @@ const DUMMY_POINTS = [
   { id: 5, x: 70, y: 60, severity: "fixed",    status: "resolved",    ward: "Central", date: "2025-12-08" },
   { id: 6, x: 85, y: 25, severity: "critical", status: "open",        ward: "Central", date: "2025-12-14" },
 ];
-
-const styles = `
-.graph-container {
-  background: #f5f7fb;
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  min-height: 100%;
-  padding: 24px;
-}
-
-.graph-card {
-  background: #ffffff;
-  border-radius: 8px;
-  padding: 20px;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-}
-
-.graph-panel {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-}
-
-.graph-canvas {
-  flex: 1;
-  position: relative;
-  background: #ffffff;
-  border-radius: 8px;
-  border: 1px solid #e5e7eb;
-  overflow: auto;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.graph-svg {
-  width: 100%;
-  height: 100%;
-  min-width: 500px;
-  min-height: 300px;
-}
-`;
 
 function Graph() {
   const [points, setPoints] = useState([]);
@@ -97,9 +51,7 @@ function Graph() {
   }, [points, query, severity, status, ward, date]);
 
   return (
-    <>
-      <style>{styles}</style>
-      <section className="graph-container">
+    <section className="graph-container">
         <div className="graph-card">
           <div className="page-heading">
             <div>
@@ -190,8 +142,7 @@ function Graph() {
           </div>
         </div>
       </section>
-    </>
-  );
+    );
 }
 
 export default Graph;
