@@ -29,6 +29,7 @@ const DUMMY_REPORTS = [
     location: "13.0674, 80.2376",
     severity_count: 34,
     status: "Pending Verification",
+    contractorId: "c3",
     reportedTime: "Jan 12, 2024 16:20"
   },
   {
@@ -36,6 +37,7 @@ const DUMMY_REPORTS = [
     location: "13.0600, 80.2800",
     severity_count: 31,
     status: "Pending Verification",
+    contractorId: "c2",
     reportedTime: "Jan 07, 2024 12:00"
   },
   {
@@ -53,6 +55,27 @@ const DUMMY_REPORTS = [
     reportedTime: "Jan 11, 2024 08:00"
   }
 ];
+
+// 🔹 DUMMY CONTRACTORS
+const DUMMY_CONTRACTORS = [
+  { id: "c1", name: "Rajesh Kumar", company: "Metro Road Works Pvt Ltd" },
+  { id: "c2", name: "Suresh Babu", company: "Highway Repairs Co" },
+  { id: "c3", name: "Venkat Rao", company: "City Infrastructure Ltd" },
+  { id: "c4", name: "Mohan Das", company: "Urban Road Solutions" },
+  { id: "c5", name: "Karthik Reddy", company: "Express Roadways" }
+];
+
+// 🔹 DUMMY VERIFICATION DATA (proofs)
+const DUMMY_VERIFICATION = {
+  "PH-2024-004": {
+    imageUrl: "https://images.unsplash.com/photo-1542314831-068cd1dbfeeb?q=80&w=1200&auto=format&fit=crop",
+    completedAt: "Jan 14, 2024 10:00"
+  },
+  "PH-2024-009": {
+    imageUrl: "https://images.unsplash.com/photo-1519682337058-a94d519337bc?q=80&w=1200&auto=format&fit=crop",
+    completedAt: "Jan 08, 2024 17:45"
+  }
+};
 
 // Thresholds to classify severity from count
 const SEVERITY_LIMITS = {
@@ -80,6 +103,9 @@ function Dashboard() {
   const [query, setQuery] = useState("");
   const [severityFilter, setSeverityFilter] = useState("All Severity");
   const [statusFilter, setStatusFilter] = useState("All Status");
+  const [activeReportId, setActiveReportId] = useState(null);
+  const [modalMode, setModalMode] = useState("assign"); // 'assign' | 'view' | 'verify'
+  const [selectedContractorId, setSelectedContractorId] = useState("");
 
   useEffect(() => {
     // ✅ Sync with dummy data; re-run on HMR when these change
@@ -119,6 +145,74 @@ function Dashboard() {
       return "status-chip status-pending";
     if (status === "Verified") return "status-chip status-verified";
     return "status-chip";
+  };
+
+  const openAssignModal = (report) => {
+    setActiveReportId(report.id);
+    setModalMode("assign");
+    setSelectedContractorId(report.contractorId || "");
+  };
+
+  const openViewModal = (report) => {
+    setActiveReportId(report.id);
+    setModalMode("view");
+    setSelectedContractorId(report.contractorId || "");
+  };
+
+  const openVerifyModal = (report) => {
+    setActiveReportId(report.id);
+    setModalMode("verify");
+    setSelectedContractorId(report.contractorId || "");
+  };
+
+  const closeModal = () => {
+    setActiveReportId(null);
+    setSelectedContractorId("");
+  };
+
+  const doAssign = () => {
+    if (!activeReportId || !selectedContractorId) return;
+    const contractor = DUMMY_CONTRACTORS.find(c => c.id === selectedContractorId);
+    setReports(prev => prev.map(r => r.id === activeReportId ? {
+      ...r,
+      contractorId: selectedContractorId,
+      contractorName: contractor?.name,
+      contractorCompany: contractor?.company,
+      status: "Assigned"
+    } : r));
+    closeModal();
+  };
+
+  const getReportById = (id) => reports.find(r => r.id === id);
+
+  const pushToHistory = (report) => {
+    const sev = severityLabelFromCount(report.severity_count);
+    const contractor = DUMMY_CONTRACTORS.find(c => c.id === (report.contractorId || selectedContractorId));
+    const proof = DUMMY_VERIFICATION[report.id];
+    const entry = {
+      id: report.id,
+      location: report.location,
+      severity: sev,
+      contractor: contractor ? `${contractor.name} - ${contractor.company}` : "",
+      fixedDate: proof?.completedAt || new Date().toLocaleString(undefined, { month: "short", day: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" }),
+      status: "Verified"
+    };
+    try {
+      const existing = JSON.parse(localStorage.getItem("verified_repairs") || "[]");
+      localStorage.setItem("verified_repairs", JSON.stringify([entry, ...existing]));
+    } catch (_) {
+      // ignore
+    }
+  };
+
+  const doVerify = () => {
+    const r = getReportById(activeReportId);
+    if (!r) return closeModal();
+    // Remove from dashboard list
+    setReports(prev => prev.filter(x => x.id !== r.id));
+    // Push a record to history storage
+    pushToHistory(r);
+    closeModal();
   };
 
   return (
@@ -241,8 +335,13 @@ function Dashboard() {
                       </span>
                     </td>
                     <td className="action-cell">
-                      <button className="btn-outline">View</button>
-                      <button className="btn-primary">Assign</button>
+                      {report.status === "Pending Verification" ? (
+                        <button className="btn-success" onClick={() => openVerifyModal(report)}>Verify</button>
+                      ) : report.contractorId ? (
+                        <button className="btn-outline" onClick={() => openViewModal(report)}>View</button>
+                      ) : (
+                        <button className="btn-primary" onClick={() => openAssignModal(report)}>Assign</button>
+                      )}
                     </td>
                   </tr>
                 ))}
@@ -258,6 +357,131 @@ function Dashboard() {
           </div>
         </div>
       </section>
+
+      {/* Assignment / View Modal */}
+      {activeReportId && (
+        <div className="modal-overlay" onClick={closeModal}>
+          <div className="modal" onClick={(e) => e.stopPropagation()}>
+            {(() => {
+              const r = getReportById(activeReportId);
+              const sevLabel = severityLabelFromCount(r?.severity_count);
+              const contractor = r?.contractorId ? DUMMY_CONTRACTORS.find(c => c.id === r.contractorId) : null;
+              return (
+                <>
+                  {modalMode === "verify" ? (
+                    <div className="modal-header">
+                      <div>
+                        <h3 className="modal-title">View Proof - <span className="muted">{r?.id}</span></h3>
+                      </div>
+                      <button className="btn-outline" onClick={closeModal}>✕</button>
+                    </div>
+                  ) : (
+                    <div className="modal-header">
+                      <div>
+                        <h3 className="modal-title">Pothole Details <span className="muted">{r?.id}</span></h3>
+                        <p className="muted">{modalMode === "assign" ? "Review pothole details and assign a contractor for repair." : "View pothole details and current assignment status."}</p>
+                      </div>
+                      <button className="btn-outline" onClick={closeModal}>✕</button>
+                    </div>
+                  )}
+                  <div className="modal-chips">
+                    <span className={severityClass(sevLabel)}>{sevLabel}</span>
+                    <span className={statusClass(r?.status)}>{r?.status}</span>
+                  </div>
+                  {modalMode === "verify" ? (
+                    <>
+                      <div className="modal-section">
+                        <img className="proof-img" src={DUMMY_VERIFICATION[r?.id]?.imageUrl} alt="Proof" />
+                      </div>
+                      <div className="modal-grid">
+                        <div>
+                          <label className="field-label">Pothole ID</label>
+                          <div className="field-box">{r?.id}</div>
+                        </div>
+                        <div>
+                          <label className="field-label">Status</label>
+                          <div><span className={statusClass(r?.status)}>{r?.status}</span></div>
+                        </div>
+                        <div>
+                          <label className="field-label">Severity</label>
+                          <div><span className={severityClass(sevLabel)}>{sevLabel}</span></div>
+                        </div>
+                        <div>
+                          <label className="field-label">Location</label>
+                          <div className="field-box">{r?.location}</div>
+                        </div>
+                      </div>
+                      <div className="modal-section">
+                        <label className="field-label">Assigned Contractor</label>
+                        <div className="field-box">
+                          {contractor ? `${contractor.name} - ${contractor.company}` : "Not available"}
+                        </div>
+                      </div>
+                      <div className="modal-section">
+                        <label className="field-label">Completed</label>
+                        <div className="field-box">{DUMMY_VERIFICATION[r?.id]?.completedAt || "--"}</div>
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <div className="modal-section">
+                        <label className="field-label">GPS Location</label>
+                        <div className="field-box">{r?.location}</div>
+                      </div>
+                      <div className="modal-section">
+                        <label className="field-label">Reported Time</label>
+                        <div className="field-box">{r?.reportedTime}</div>
+                      </div>
+                      {modalMode === "view" && r?.contractorId && (
+                        <div className="modal-section">
+                          <label className="field-label">Assigned Contractor</label>
+                          <div className="field-box">
+                            {contractor?.name} - {contractor?.company}
+                          </div>
+                        </div>
+                      )}
+                      {modalMode === "assign" && (
+                        <div className="modal-section">
+                          <label className="field-label">Select Contractor</label>
+                          <select
+                            className="select"
+                            value={selectedContractorId}
+                            onChange={(e) => setSelectedContractorId(e.target.value)}
+                          >
+                            <option value="">Choose a contractor...</option>
+                            {DUMMY_CONTRACTORS.map(c => (
+                              <option key={c.id} value={c.id}>{c.name} - {c.company}</option>
+                            ))}
+                          </select>
+                        </div>
+                      )}
+                    </>
+                  )}
+
+                  <div className="modal-footer">
+                    {modalMode === "assign" ? (
+                      <>
+                        <button className="btn-outline" onClick={closeModal}>Cancel</button>
+                        <button className="btn-success" disabled={!selectedContractorId} onClick={doAssign}>Assign</button>
+                      </>
+                    ) : modalMode === "view" ? (
+                      <>
+                        <button className="btn-outline" onClick={() => { setSelectedContractorId(r?.contractorId || ""); setModalMode("assign"); }}>Edit</button>
+                        <button className="btn-primary" onClick={closeModal}>Close</button>
+                      </>
+                    ) : (
+                      <>
+                        <button className="btn-outline" onClick={closeModal}>Close</button>
+                        <button className="btn-success" onClick={doVerify}>Verify & Close</button>
+                      </>
+                    )}
+                  </div>
+                </>
+              );
+            })()}
+          </div>
+        </div>
+      )}
     </>
   );
 }

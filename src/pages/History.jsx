@@ -28,8 +28,13 @@ function History() {
   const [query, setQuery] = useState("");
 
   useEffect(() => {
-    // ✅ USING DUMMY DATA NOW
-    setRepairs(DUMMY_REPAIRS);
+    // ✅ Merge built-in dummy with any verified from Dashboard stored in localStorage
+    try {
+      const extra = JSON.parse(localStorage.getItem("verified_repairs") || "[]");
+      setRepairs([...(Array.isArray(extra) ? extra : []), ...DUMMY_REPAIRS]);
+    } catch (_) {
+      setRepairs(DUMMY_REPAIRS);
+    }
   }, []);
 
   const filteredRepairs = useMemo(() => {
