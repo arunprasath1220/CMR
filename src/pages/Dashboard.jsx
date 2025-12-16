@@ -20,39 +20,53 @@ const DUMMY_REPORTS = [
   {
     id: "PH-2024-001",
     location: "13.0827, 80.2707",
-    severity: "High",
+    severity_count: 0,
     status: "Reported",
     reportedTime: "Jan 15, 2024 09:30"
   },
   {
     id: "PH-2024-004",
     location: "13.0674, 80.2376",
-    severity: "High",
+    severity_count: 34,
     status: "Pending Verification",
     reportedTime: "Jan 12, 2024 16:20"
   },
   {
     id: "PH-2024-009",
     location: "13.0600, 80.2800",
-    severity: "High",
+    severity_count: 31,
     status: "Pending Verification",
     reportedTime: "Jan 07, 2024 12:00"
   },
   {
     id: "PH-2024-002",
     location: "13.0569, 80.2425",
-    severity: "Medium",
+    severity_count: 18,
     status: "Assigned",
     reportedTime: "Jan 14, 2024 14:15"
   },
   {
     id: "PH-2024-005",
     location: "13.0450, 80.2494",
-    severity: "Medium",
+    severity_count: 12,
     status: "Reported",
     reportedTime: "Jan 11, 2024 08:00"
   }
 ];
+
+// Thresholds to classify severity from count
+const SEVERITY_LIMITS = {
+  High: 30, // >= 30 → High
+  Medium: 10 // >= 10 and < 30 → Medium; else Low
+};
+
+const severityLabelFromCount = (count) => {
+  const n = Number.isFinite(count) ? count : Number(count);
+  const c = Number.isFinite(n) ? Math.max(0, n) : 0;
+  if (c >= SEVERITY_LIMITS.High) return "High";
+  if (c >= SEVERITY_LIMITS.Medium) return "Medium";
+  return "Low";
+};
 
 function Dashboard() {
   const [summary, setSummary] = useState({
@@ -68,22 +82,23 @@ function Dashboard() {
   const [statusFilter, setStatusFilter] = useState("All Status");
 
   useEffect(() => {
-    // ✅ USING DUMMY DATA NOW
+    // ✅ Sync with dummy data; re-run on HMR when these change
     setSummary(DUMMY_SUMMARY);
     setReports(DUMMY_REPORTS);
-  }, []);
+  }, [DUMMY_SUMMARY, DUMMY_REPORTS]);
 
   const filteredReports = useMemo(() => {
     const q = query.trim().toLowerCase();
     return reports.filter((r) => {
+      const sevLabel = severityLabelFromCount(r.severity_count);
       const matchQuery =
         !q ||
         r.id.toLowerCase().includes(q) ||
         r.location.toLowerCase().includes(q) ||
-        r.severity.toLowerCase().includes(q) ||
+        sevLabel.toLowerCase().includes(q) ||
         r.status.toLowerCase().includes(q);
       const matchSeverity =
-        severityFilter === "All Severity" || r.severity === severityFilter;
+        severityFilter === "All Severity" || sevLabel === severityFilter;
       const matchStatus =
         statusFilter === "All Status" || r.status === statusFilter;
       return matchQuery && matchSeverity && matchStatus;
@@ -215,8 +230,8 @@ function Dashboard() {
                     <td>{report.id}</td>
                     <td>{report.location}</td>
                     <td>
-                      <span className={severityClass(report.severity)}>
-                        {report.severity}
+                      <span className={severityClass(severityLabelFromCount(report.severity_count))}>
+                        {severityLabelFromCount(report.severity_count)}
                       </span>
                     </td>
                     <td>{report.reportedTime}</td>
