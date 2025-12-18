@@ -7,14 +7,7 @@ import BuildOutlinedIcon from "@mui/icons-material/BuildOutlined";
 import PendingActionsOutlinedIcon from "@mui/icons-material/PendingActionsOutlined";
 import CheckCircleOutlineIcon from "@mui/icons-material/CheckCircleOutline";
 
-// 🔹 DUMMY DATA (REMOVE LATER)
-const DUMMY_SUMMARY = {
-  reported: 3,
-  assigned: 2,
-  inProgress: 1,
-  pending: 2,
-  verified: 2
-};
+// 🔹 DUMMY DATA
 
 // Potholes (reports) - grouped by road with matching statuses
 const DUMMY_REPORTS = [
@@ -24,7 +17,6 @@ const DUMMY_REPORTS = [
     location: "13.0827, 80.2707",
     severity_count: 8,
     status: "Reported",
-    description: "Cracked surface near bus stop, depth ~3cm.",
     reportedTime: "Jan 15, 2024 09:30"
   },
   {
@@ -32,7 +24,6 @@ const DUMMY_REPORTS = [
     location: "13.0828, 80.2708",
     severity_count: 15,
     status: "Reported",
-    description: "Edge wear near junction, expanding daily.",
     reportedTime: "Jan 15, 2024 11:00"
   },
   {
@@ -40,7 +31,6 @@ const DUMMY_REPORTS = [
     location: "13.0829, 80.2709",
     severity_count: 6,
     status: "Reported",
-    description: "Minor crack near footpath.",
     reportedTime: "Jan 15, 2024 12:30"
   },
   // Road 2: Mount Road - Assigned status (4 potholes)
@@ -50,7 +40,6 @@ const DUMMY_REPORTS = [
     severity_count: 18,
     status: "Assigned",
     contractorId: "c1",
-    description: "Cluster of small potholes near school gate.",
     reportedTime: "Jan 14, 2024 14:15"
   },
   {
@@ -59,7 +48,6 @@ const DUMMY_REPORTS = [
     severity_count: 12,
     status: "Assigned",
     contractorId: "c1",
-    description: "Adjacent pothole forming, needs repair.",
     reportedTime: "Jan 14, 2024 15:00"
   },
   {
@@ -68,7 +56,6 @@ const DUMMY_REPORTS = [
     severity_count: 20,
     status: "Assigned",
     contractorId: "c1",
-    description: "Deep cavity at road edge.",
     reportedTime: "Jan 14, 2024 16:00"
   },
   {
@@ -77,7 +64,6 @@ const DUMMY_REPORTS = [
     severity_count: 9,
     status: "Assigned",
     contractorId: "c1",
-    description: "Surface depression causing water pooling.",
     reportedTime: "Jan 14, 2024 17:00"
   },
   // Road 3: Cathedral Road - Pending Verification status (2 potholes)
@@ -87,7 +73,6 @@ const DUMMY_REPORTS = [
     severity_count: 34,
     status: "Pending Verification",
     contractorId: "c3",
-    description: "Large cavity by median, approx 60cm diameter - work completed.",
     reportedTime: "Jan 12, 2024 16:20"
   },
   {
@@ -96,7 +81,6 @@ const DUMMY_REPORTS = [
     severity_count: 22,
     status: "Pending Verification",
     contractorId: "c3",
-    description: "Deep pit after rains - repair completed.",
     reportedTime: "Jan 12, 2024 18:00"
   },
   // Road 4: Gandhi Road - Reported status (5 potholes)
@@ -105,7 +89,6 @@ const DUMMY_REPORTS = [
     location: "13.0600, 80.2800",
     severity_count: 31,
     status: "Reported",
-    description: "At intersection, drainage cover misaligned.",
     reportedTime: "Jan 07, 2024 12:00"
   },
   {
@@ -113,7 +96,6 @@ const DUMMY_REPORTS = [
     location: "13.0601, 80.2801",
     severity_count: 9,
     status: "Reported",
-    description: "Surface deterioration near traffic signal.",
     reportedTime: "Jan 07, 2024 14:30"
   },
   {
@@ -121,7 +103,6 @@ const DUMMY_REPORTS = [
     location: "13.0602, 80.2802",
     severity_count: 14,
     status: "Reported",
-    description: "Multiple small cracks forming cluster.",
     reportedTime: "Jan 07, 2024 16:00"
   },
   {
@@ -129,7 +110,6 @@ const DUMMY_REPORTS = [
     location: "13.0603, 80.2803",
     severity_count: 7,
     status: "Reported",
-    description: "Edge breakage near curb.",
     reportedTime: "Jan 07, 2024 17:30"
   },
   {
@@ -137,7 +117,6 @@ const DUMMY_REPORTS = [
     location: "13.0604, 80.2804",
     severity_count: 11,
     status: "Reported",
-    description: "Growing pothole in left lane.",
     reportedTime: "Jan 07, 2024 18:00"
   }
 ];
@@ -149,7 +128,6 @@ const DUMMY_PATCHES = [
     id: "PA-2024-101",
     location: "13.0827, 80.2707",
     status: "Reported",
-    description: "Road surface patching required near bus stop area.",
     completedTime: "--",
     reportedTime: "Jan 15, 2024 09:45"
   },
@@ -157,7 +135,6 @@ const DUMMY_PATCHES = [
     id: "PA-2024-102",
     location: "13.0828, 80.2708",
     status: "Reported",
-    description: "Junction overlay needed for smooth traffic flow.",
     completedTime: "--",
     reportedTime: "Jan 15, 2024 11:15"
   },
@@ -167,7 +144,6 @@ const DUMMY_PATCHES = [
     location: "13.0569, 80.2425",
     status: "Assigned",
     contractorId: "c1",
-    description: "School zone resurfacing - contractor allocated.",
     completedTime: "--",
     reportedTime: "Jan 14, 2024 14:30"
   },
@@ -176,7 +152,6 @@ const DUMMY_PATCHES = [
     location: "13.0570, 80.2426",
     status: "Assigned",
     contractorId: "c1",
-    description: "Adjacent area repair scheduled with main work.",
     completedTime: "--",
     reportedTime: "Jan 14, 2024 15:15"
   },
@@ -186,7 +161,6 @@ const DUMMY_PATCHES = [
     location: "13.0674, 80.2376",
     status: "Pending Verification",
     contractorId: "c3",
-    description: "Hot mix applied and compacted; edges sealed.",
     completedTime: "Jan 14, 2024 11:15",
     reportedTime: "Jan 13, 2024 08:00"
   },
@@ -195,7 +169,6 @@ const DUMMY_PATCHES = [
     location: "13.0675, 80.2377",
     status: "Pending Verification",
     contractorId: "c3",
-    description: "Asphalt overlay completed, awaiting inspection.",
     completedTime: "Jan 14, 2024 12:30",
     reportedTime: "Jan 13, 2024 09:00"
   },
@@ -204,7 +177,6 @@ const DUMMY_PATCHES = [
     location: "13.0676, 80.2378",
     status: "Pending Verification",
     contractorId: "c3",
-    description: "Surface leveling and finishing work done.",
     completedTime: "Jan 14, 2024 14:00",
     reportedTime: "Jan 13, 2024 10:00"
   },
@@ -213,7 +185,6 @@ const DUMMY_PATCHES = [
     location: "13.0677, 80.2379",
     status: "Pending Verification",
     contractorId: "c3",
-    description: "Road marking and line painting completed.",
     completedTime: "Jan 14, 2024 15:30",
     reportedTime: "Jan 13, 2024 11:00"
   },
@@ -222,7 +193,6 @@ const DUMMY_PATCHES = [
     id: "PA-2024-109",
     location: "13.0600, 80.2800",
     status: "Reported",
-    description: "Intersection repair and drainage adjustment needed.",
     completedTime: "--",
     reportedTime: "Jan 07, 2024 12:30"
   },
@@ -230,7 +200,6 @@ const DUMMY_PATCHES = [
     id: "PA-2024-110",
     location: "13.0601, 80.2801",
     status: "Reported",
-    description: "Signal area patch work required urgently.",
     completedTime: "--",
     reportedTime: "Jan 07, 2024 15:00"
   },
@@ -238,7 +207,6 @@ const DUMMY_PATCHES = [
     id: "PA-2024-111",
     location: "13.0602, 80.2802",
     status: "Reported",
-    description: "Lane marking restoration needed.",
     completedTime: "--",
     reportedTime: "Jan 07, 2024 16:30"
   }
@@ -389,7 +357,6 @@ function Dashboard() {
 
   // initial dummy sync
   useEffect(() => {
-    setSummary(DUMMY_SUMMARY);
     // Exclude already verified items so they never reappear
     let verifiedIds = new Set();
     try {
@@ -402,8 +369,7 @@ function Dashboard() {
         .filter((r) => !verifiedIds.has(r.id))
         .map((r) => ({
           ...r,
-          roadName: "",
-          roadCount: 0
+          roadName: ""
         }))
     );
     setPatches(
@@ -416,28 +382,44 @@ function Dashboard() {
     );
   }, []);
 
-  // Update summary counts based on current reports and patches
-  useEffect(() => {
-    const allItems = [...reports, ...patches];
-    const reportedCount = allItems.filter((item) => item.status === "Reported").length;
-    const assignedCount = allItems.filter((item) => item.status === "Assigned").length;
-    const pendingCount = allItems.filter((item) => item.status === "Pending Verification").length;
-    
-    // Get verified count from localStorage
-    let verifiedCount = 0;
+  // Recompute summary based on unique roads per status
+  const recomputeSummary = () => {
+    const reportedRoads = groupedRows.filter((row) => row.status === "Reported").length;
+    const assignedRoads = groupedRows.filter((row) => row.status === "Assigned").length;
+    const pendingRoads = groupedRows.filter((row) => row.status === "Pending Verification").length;
+
+    // Verified roads: unique road names from localStorage entries
+    let verifiedRoads = 0;
     try {
       const verified = JSON.parse(localStorage.getItem("verified_repairs") || "[]");
-      verifiedCount = verified.length;
+      const unique = new Set(
+        (Array.isArray(verified) ? verified : []).map((v) =>
+          (v.roadName && v.roadName.trim()) || (v.location || "").trim() || v.id
+        )
+      );
+      verifiedRoads = unique.size;
     } catch (_) {}
-    
+
     setSummary({
-      reported: reportedCount,
-      assigned: assignedCount,
-      inProgress: 0, // Can be calculated if needed
-      pending: pendingCount,
-      verified: verifiedCount
+      reported: reportedRoads,
+      assigned: assignedRoads,
+      inProgress: 0,
+      pending: pendingRoads,
+      verified: verifiedRoads
     });
-  }, [reports, patches]);
+  };
+
+  // Update when grouped rows change (road-level)
+  useEffect(() => {
+    recomputeSummary();
+  }, [groupedRows]);
+
+  // Also update when verified repairs change (from batch verify)
+  useEffect(() => {
+    const handler = () => recomputeSummary();
+    window.addEventListener("verifiedRepairsChanged", handler);
+    return () => window.removeEventListener("verifiedRepairsChanged", handler);
+  }, []);
 
   // Local cache for road names (location -> roadName)
   const readRoadCache = () => {
@@ -659,8 +641,6 @@ function Dashboard() {
           ? {
               ...r,
               contractorId: selectedContractorId,
-              contractorName: contractor?.name,
-              contractorCompany: contractor?.company,
               status: "Assigned"
             }
           : r
@@ -757,8 +737,6 @@ function Dashboard() {
           ? {
               ...r,
               contractorId: batchContractorId,
-              contractorName: contractor?.name,
-              contractorCompany: contractor?.company,
               status: "Assigned"
             }
           : r
@@ -772,8 +750,6 @@ function Dashboard() {
           ? {
               ...p,
               contractorId: batchContractorId,
-              contractorName: contractor?.name,
-              contractorCompany: contractor?.company,
               status: "Assigned"
             }
           : p
@@ -1167,7 +1143,6 @@ function Dashboard() {
                     <th>Pothole ID</th>
                     <th>Location</th>
                     <th>Severity</th>
-                    <th>Description</th>
                     <th>Contractor</th>
                     <th>Reported Time</th>
                     <th>Status</th>
@@ -1196,7 +1171,6 @@ function Dashboard() {
                                 {severityLabelFromCount(report.severity_count)}
                               </span>
                             </td>
-                            <td>{report.description || "--"}</td>
                             <td>{contractor ? `${contractor.name}` : "--"}</td>
                             <td>{report.reportedTime}</td>
                             <td>
@@ -1224,14 +1198,14 @@ function Dashboard() {
                         })}
                         {total === 0 && (
                           <tr>
-                            <td colSpan="8" style={{ textAlign: "center", padding: "18px", color: "#6b7280" }}>
+                            <td colSpan="7" style={{ textAlign: "center", padding: "18px", color: "#6b7280" }}>
                               No potholes on this road.
                             </td>
                           </tr>
                         )}
                         {total > 10 && (
                           <tr>
-                            <td colSpan="8">
+                            <td colSpan="7">
                               <div className="table-pagination" style={{ justifyContent: "flex-end" }}>
                                 <button className="btn-outline" disabled={modalPHPage <= 1} onClick={() => setModalPHPage((p) => Math.max(1, p - 1))}>Prev</button>
                                 <span style={{ margin: "0 8px" }}>{modalPHPage} / {Math.ceil(total / 10)}</span>
@@ -1256,7 +1230,6 @@ function Dashboard() {
                     <th>Patch ID</th>
                     <th>Location</th>
                     <th>Status</th>
-                    <th>Description</th>
                     <th>Contractor</th>
                     <th>Completed/Scheduled</th>
                   </tr>
@@ -1281,7 +1254,6 @@ function Dashboard() {
                             <td>
                               <span className={statusClass(pt.status)}>{pt.status}</span>
                             </td>
-                            <td>{pt.description || "--"}</td>
                             <td>{contractor ? `${contractor.name}` : "--"}</td>
                             <td>{pt.completedTime}</td>
                           </tr>
@@ -1289,14 +1261,14 @@ function Dashboard() {
                         })}
                         {total === 0 && (
                           <tr>
-                            <td colSpan="6" style={{ textAlign: "center", padding: "18px", color: "#6b7280" }}>
+                            <td colSpan="5" style={{ textAlign: "center", padding: "18px", color: "#6b7280" }}>
                               No patches recorded for this road.
                             </td>
                           </tr>
                         )}
                         {total > 10 && (
                           <tr>
-                            <td colSpan="6">
+                            <td colSpan="5">
                               <div className="table-pagination" style={{ justifyContent: "flex-end" }}>
                                 <button className="btn-outline" disabled={modalPTPage <= 1} onClick={() => setModalPTPage((p) => Math.max(1, p - 1))}>Prev</button>
                                 <span style={{ margin: "0 8px" }}>{modalPTPage} / {Math.ceil(total / 10)}</span>
@@ -1421,10 +1393,6 @@ function Dashboard() {
                       <div className="modal-section">
                         <label className="field-label">GPS Location</label>
                         <div className="field-box">{r?.location}</div>
-                      </div>
-                      <div className="modal-section">
-                        <label className="field-label">Description</label>
-                        <div className="field-box">{r?.description || "--"}</div>
                       </div>
                       <div className="modal-section">
                         <label className="field-label">Reported Time</label>
