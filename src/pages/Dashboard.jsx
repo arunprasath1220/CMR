@@ -10,234 +10,6 @@ import CheckCircleOutlineIcon from "@mui/icons-material/CheckCircleOutline";
 // API Configuration
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 
-// 🔹 DUMMY DATA (fallback when API is unavailable)
-
-// Potholes (reports) - grouped by road with matching statuses
-const DUMMY_REPORTS = [
-  // Road 1: Anna Salai - Reported status (3 potholes)
-  {
-    id: "PH-2024-001",
-    location: "8.428379, 78.0254488",
-    severity_count: 8,
-    status: "Reported",
-    reportedTime: "Jan 15, 2024 09:30"
-  },
-  {
-    id: "PH-2024-002",
-    location: "13.0828, 80.2708",
-    severity_count: 15,
-    status: "Reported",
-    reportedTime: "Jan 15, 2024 11:00"
-  },
-  {
-    id: "PH-2024-003",
-    location: "13.0829, 80.2709",
-    severity_count: 6,
-    status: "Reported",
-    reportedTime: "Jan 15, 2024 12:30"
-  },
-  // Road 2: Mount Road - Assigned status (4 potholes)
-  {
-    id: "PH-2024-004",
-    location: "13.0569, 80.2425",
-    severity_count: 18,
-    status: "Assigned",
-    contractorId: "c1",
-    reportedTime: "Jan 14, 2024 14:15"
-  },
-  {
-    id: "PH-2024-005",
-    location: "13.0570, 80.2426",
-    severity_count: 12,
-    status: "Assigned",
-    contractorId: "c1",
-    reportedTime: "Jan 14, 2024 15:00"
-  },
-  {
-    id: "PH-2024-006",
-    location: "13.0571, 80.2427",
-    severity_count: 20,
-    status: "Assigned",
-    contractorId: "c1",
-    reportedTime: "Jan 14, 2024 16:00"
-  },
-  {
-    id: "PH-2024-007",
-    location: "13.0572, 80.2428",
-    severity_count: 9,
-    status: "Assigned",
-    contractorId: "c1",
-    reportedTime: "Jan 14, 2024 17:00"
-  },
-  // Road 3: Cathedral Road - Pending Verification status (2 potholes)
-  {
-    id: "PH-2024-008",
-    location: "13.0674, 80.2376",
-    severity_count: 34,
-    status: "Pending Verification",
-    contractorId: "c3",
-    reportedTime: "Jan 12, 2024 16:20"
-  },
-  {
-    id: "PH-2024-009",
-    location: "13.0675, 80.2377",
-    severity_count: 22,
-    status: "Pending Verification",
-    contractorId: "c3",
-    reportedTime: "Jan 12, 2024 18:00"
-  },
-  // Road 4: Gandhi Road - Reported status (5 potholes)
-  {
-    id: "PH-2024-010",
-    location: "13.0600, 80.2800",
-    severity_count: 31,
-    status: "Reported",
-    reportedTime: "Jan 07, 2024 12:00"
-  },
-  {
-    id: "PH-2024-011",
-    location: "13.0601, 80.2801",
-    severity_count: 9,
-    status: "Reported",
-    reportedTime: "Jan 07, 2024 14:30"
-  },
-  {
-    id: "PH-2024-012",
-    location: "13.0602, 80.2802",
-    severity_count: 14,
-    status: "Reported",
-    reportedTime: "Jan 07, 2024 16:00"
-  },
-  {
-    id: "PH-2024-013",
-    location: "13.0603, 80.2803",
-    severity_count: 7,
-    status: "Reported",
-    reportedTime: "Jan 07, 2024 17:30"
-  },
-  {
-    id: "PH-2024-014",
-    location: "13.0604, 80.2804",
-    severity_count: 11,
-    status: "Reported",
-    reportedTime: "Jan 07, 2024 18:00"
-  }
-];
-
-// Patches (repairs/works) - matching status with potholes on same road
-const DUMMY_PATCHES = [
-  // Road 1: Anna Salai - Reported status (2 patches)
-  {
-    id: "PA-2024-101",
-    location: "13.0827, 80.2707",
-    status: "Reported",
-    completedTime: "--",
-    reportedTime: "Jan 15, 2024 09:45"
-  },
-  {
-    id: "PA-2024-102",
-    location: "13.0828, 80.2708",
-    status: "Reported",
-    completedTime: "--",
-    reportedTime: "Jan 15, 2024 11:15"
-  },
-  // Road 2: Mount Road - Assigned status (2 patches)
-  {
-    id: "PA-2024-103",
-    location: "13.0569, 80.2425",
-    status: "Assigned",
-    contractorId: "c1",
-    completedTime: "--",
-    reportedTime: "Jan 14, 2024 14:30"
-  },
-  {
-    id: "PA-2024-104",
-    location: "13.0570, 80.2426",
-    status: "Assigned",
-    contractorId: "c1",
-    completedTime: "--",
-    reportedTime: "Jan 14, 2024 15:15"
-  },
-  // Road 3: Cathedral Road - Pending Verification status (4 patches)
-  {
-    id: "PA-2024-105",
-    location: "13.0674, 80.2376",
-    status: "Pending Verification",
-    contractorId: "c3",
-    completedTime: "Jan 14, 2024 11:15",
-    reportedTime: "Jan 13, 2024 08:00"
-  },
-  {
-    id: "PA-2024-106",
-    location: "13.0675, 80.2377",
-    status: "Pending Verification",
-    contractorId: "c3",
-    completedTime: "Jan 14, 2024 12:30",
-    reportedTime: "Jan 13, 2024 09:00"
-  },
-  {
-    id: "PA-2024-107",
-    location: "13.0676, 80.2378",
-    status: "Pending Verification",
-    contractorId: "c3",
-    completedTime: "Jan 14, 2024 14:00",
-    reportedTime: "Jan 13, 2024 10:00"
-  },
-  {
-    id: "PA-2024-108",
-    location: "13.0677, 80.2379",
-    status: "Pending Verification",
-    contractorId: "c3",
-    completedTime: "Jan 14, 2024 15:30",
-    reportedTime: "Jan 13, 2024 11:00"
-  },
-  // Road 4: Gandhi Road - Reported status (3 patches)
-  {
-    id: "PA-2024-109",
-    location: "13.0600, 80.2800",
-    status: "Reported",
-    completedTime: "--",
-    reportedTime: "Jan 07, 2024 12:30"
-  },
-  {
-    id: "PA-2024-110",
-    location: "13.0601, 80.2801",
-    status: "Reported",
-    completedTime: "--",
-    reportedTime: "Jan 07, 2024 15:00"
-  },
-  {
-    id: "PA-2024-111",
-    location: "13.0602, 80.2802",
-    status: "Reported",
-    completedTime: "--",
-    reportedTime: "Jan 07, 2024 16:30"
-  }
-];
-
-// 🔹 DUMMY CONTRACTORS
-const DUMMY_CONTRACTORS = [
-  { id: "c1", name: "Rajesh Kumar", company: "Metro Road Works Pvt Ltd" },
-  { id: "c2", name: "Suresh Babu", company: "Highway Repairs Co" },
-  { id: "c3", name: "Venkat Rao", company: "City Infrastructure Ltd" },
-  { id: "c4", name: "Mohan Das", company: "Urban Road Solutions" },
-  { id: "c5", name: "Karthik Reddy", company: "Express Roadways" }
-];
-
-// 🔹 DUMMY VERIFICATION DATA (proofs)
-const DUMMY_VERIFICATION = {
-  "PH-2024-004": {
-    imageUrl:
-      "https://images.unsplash.com/photo-1542314831-068cd1dbfeeb?q=80&w=1200&auto=format&fit=crop",
-    completedAt: "Jan 14, 2024 10:00"
-  },
-  "PH-2024-009": {
-    imageUrl:
-      "https://images.unsplash.com/photo-1519682337058-a94d519337bc?q=80&w=1200&auto=format&fit=crop",
-    completedAt: "Jan 08, 2024 17:45"
-  }
-};
-
 // Thresholds to classify severity from count
 const SEVERITY_LIMITS = {
   High: 30,
@@ -336,7 +108,7 @@ function Dashboard() {
   });
   const [reports, setReports] = useState([]);
   const [patches, setPatches] = useState([]);
-  const [contractors, setContractors] = useState(DUMMY_CONTRACTORS);
+  const [contractors, setContractors] = useState([]);
   const [query, setQuery] = useState("");
   const [severityFilter, setSeverityFilter] = useState("All Severity");
   const [statusFilter, setStatusFilter] = useState("All Status");
@@ -396,7 +168,7 @@ function Dashboard() {
       const locationsData = await locationsRes.json();
       
       // Fetch contractors from public endpoint (no auth required)
-      let contractorsData = DUMMY_CONTRACTORS;
+      let contractorsData = [];
       try {
         const contractorsRes = await fetch(`${API_BASE_URL}/reports/contractors/list`);
         if (contractorsRes.ok) {
@@ -407,7 +179,7 @@ function Dashboard() {
           }
         }
       } catch (e) {
-        console.warn('Failed to fetch contractors, using dummy data:', e);
+        console.warn('Failed to fetch contractors:', e);
       }
       setContractors(contractorsData);
       
@@ -465,32 +237,20 @@ function Dashboard() {
         setUseApi(true);
         console.log('Loaded', mappedReports.length, 'locations and', mappedPatches.length, 'patches from API');
       } else {
-        // No data from API, fall back to dummy
-        throw new Error('No data from API');
+        // No data from API
+        console.log('No locations data from API');
+        setReports([]);
+        setPatches([]);
       }
     } catch (error) {
       console.error('API fetch failed:', error);
       setApiError(error.message);
       setUseApi(false);
       
-      // Fall back to dummy data
-      let verifiedIds = new Set();
-      try {
-        const verified = JSON.parse(localStorage.getItem("verified_repairs") || "[]");
-        verifiedIds = new Set((Array.isArray(verified) ? verified : []).map((x) => x.id));
-      } catch (_) {}
-
-      setReports(
-        DUMMY_REPORTS
-          .filter((r) => !verifiedIds.has(r.id))
-          .map((r) => ({ ...r, roadName: "" }))
-      );
-      setPatches(
-        DUMMY_PATCHES
-          .filter((p) => !verifiedIds.has(p.id))
-          .map((p) => ({ ...p, roadName: "" }))
-      );
-      setContractors(DUMMY_CONTRACTORS);
+      // Set empty state on error
+      setReports([]);
+      setPatches([]);
+      setContractors([]);
     } finally {
       setIsLoading(false);
     }
@@ -801,7 +561,6 @@ function Dashboard() {
     const contractor = contractors.find(
       (c) => c.id === (report.contractorId || selectedContractorId)
     );
-    const proof = DUMMY_VERIFICATION[report.id];
     const entry = {
       id: report.id,
       location: report.location,
@@ -810,15 +569,13 @@ function Dashboard() {
       contractor: contractor
         ? `${contractor.name} - ${contractor.company}`
         : "",
-      fixedDate:
-        proof?.completedAt ||
-        new Date().toLocaleString(undefined, {
-          month: "short",
-          day: "2-digit",
-          year: "numeric",
-          hour: "2-digit",
-          minute: "2-digit"
-        }),
+      fixedDate: new Date().toLocaleString(undefined, {
+        month: "short",
+        day: "2-digit",
+        year: "numeric",
+        hour: "2-digit",
+        minute: "2-digit"
+      }),
       status: "Verified"
     };
     try {
@@ -1378,6 +1135,7 @@ function Dashboard() {
                     return (
                       <>
                         {pageItems.map((report) => {
+                    console.log(report.severity_count);
                           const contractor = report.contractorId
                             ? contractors.find((c) => c.id === report.contractorId)
                             : null;
@@ -1558,11 +1316,9 @@ function Dashboard() {
                   {modalMode === "verify" ? (
                     <>
                       <div className="modal-section">
-                        <img
-                          className="proof-img"
-                          src={DUMMY_VERIFICATION[r?.id]?.imageUrl}
-                          alt="Proof"
-                        />
+                        <div className="field-box" style={{ textAlign: 'center', padding: '24px', color: '#6b7280' }}>
+                          No proof image available
+                        </div>
                       </div>
                       <div className="modal-grid">
                         <div>
@@ -1603,7 +1359,7 @@ function Dashboard() {
                       <div className="modal-section">
                         <label className="field-label">Completed</label>
                         <div className="field-box">
-                          {DUMMY_VERIFICATION[r?.id]?.completedAt || "--"}
+                          {r?.reportedTime || "--"}
                         </div>
                       </div>
                     </>
@@ -1806,24 +1562,17 @@ function Dashboard() {
         const contractor = firstPending?.contractorId
           ? contractors.find((c) => c.id === firstPending.contractorId)
           : null;
-        const proof = firstPending ? DUMMY_VERIFICATION[firstPending.id] : null;
         
         return (
           <div className="modal-overlay" onClick={closeBatchModal}>
             <div className="modal-fullscreen" onClick={(e) => e.stopPropagation()}>
               <div className="modal-header">
                 <div>
-                  <h3 className="modal-title">View Proof - {batchRoadKey}</h3>
+                  <h3 className="modal-title">Verify Repairs - {batchRoadKey}</h3>
                   <p className="muted">Verify all completed repairs on this road</p>
                 </div>
                 <button className="btn-outline" onClick={closeBatchModal}>✕</button>
               </div>
-
-              {proof && (
-                <div className="modal-section">
-                  <img className="proof-img" src={proof.imageUrl} alt="Proof" />
-                </div>
-              )}
 
               <div className="modal-section">
                 <label className="field-label">📍 Road Name</label>
