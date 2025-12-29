@@ -69,6 +69,25 @@ const parseReportedDate = (str) => {
   return null;
 };
 
+// Parse backend DATE/TIMESTAMP values safely.
+// - DATE often arrives as "YYYY-MM-DD"; parse as a local date at midnight.
+// - TIMESTAMP/ISO strings are parsed normally.
+const parseBackendDate = (value) => {
+  if (!value) return null;
+  if (value instanceof Date && !Number.isNaN(value.getTime())) return value;
+  const s = String(value).trim();
+  if (!s) return null;
+
+  // YYYY-MM-DD
+  if (/^\d{4}-\d{2}-\d{2}$/.test(s)) {
+    const d = new Date(`${s}T00:00:00`);
+    return Number.isNaN(d.getTime()) ? null : d;
+  }
+
+  const d = new Date(s);
+  return Number.isNaN(d.getTime()) ? null : d;
+};
+
 // 🔹 Helper: format Date nicely
 const formatDate = (date) => {
   if (!date) return "--";
@@ -105,11 +124,69 @@ const addBusinessDays = (startDate, businessDays) => {
   return result;
 };
 
-// 🔹 Helper: compute deadline date from avg reported date + severity SLA
-const computeDeadlineFromAverageReportedDate = (avgReportedDate, severity) => {
-  if (!avgReportedDate) return null;
-  const days = DEADLINE_DAYS_BY_SEVERITY[severity] ?? DEADLINE_DAYS_BY_SEVERITY.Low;
-  return addBusinessDays(avgReportedDate, days);
+// 🔹 Helper: compute deadline date from assignment date + severity SLA
+const computeDeadlineFromAssignmentDate = (assignedDate, severity) => {
+  if (!assignedDate) return null;
+  const days =
+    DEADLINE_DAYS_BY_SEVERITY[severity] ?? DEADLINE_DAYS_BY_SEVERITY.Low;
+  return addBusinessDays(assignedDate, days);
+};
+
+const DEADLINE_CACHE_KEY = "road_deadlines_v1";
+
+const readDeadlineCache = () => {
+  try {
+    const raw = localStorage.getItem(DEADLINE_CACHE_KEY);
+    const parsed = raw ? JSON.parse(raw) : {};
+    return parsed && typeof parsed === "object" ? parsed : {};
+  } catch {
+    return {};
+  }
+};
+
+const writeDeadlineCache = (cache) => {
+  try {
+    localStorage.setItem(DEADLINE_CACHE_KEY, JSON.stringify(cache || {}));
+  } catch {
+    // ignore
+  }
+};
+
+const deadlineLocationKey = (location) => {
+  const s = (location || "").trim();
+  if (!s) return null;
+  // Normalize spacing/case so the same lat/lon matches across refreshes.
+  return `loc:${s.toLowerCase().replace(/\s+/g, "")}`;
+};
+
+const deadlineDbKey = (dbId) => {
+  const n = Number(dbId);
+  if (!Number.isFinite(n)) return null;
+  return `db:${Math.trunc(n)}`;
+};
+
+const deadlineGridKey = (gridId) => {
+  const s = (gridId || "").trim();
+  if (!s) return null;
+  return `grid:${s}`;
+};
+
+const deadlineKeysForItem = (itemOrLocation) => {
+  // Accept either a string location or an object { location, dbId, gridId }
+  if (!itemOrLocation) return [];
+  if (typeof itemOrLocation === "string") {
+    const lk = deadlineLocationKey(itemOrLocation);
+    return lk ? [lk] : [];
+  }
+  if (typeof itemOrLocation === "object") {
+    const keys = [
+      deadlineGridKey(itemOrLocation.gridId),
+      deadlineDbKey(itemOrLocation.dbId),
+      deadlineLocationKey(itemOrLocation.location),
+    ].filter(Boolean);
+    return keys;
+  }
+  return [];
 };
 
 // 🔹 Helper: severity numeric weight for averaging
@@ -158,6 +235,9 @@ function Dashboard() {
   const [isLoading, setIsLoading] = useState(true);
   const [apiError, setApiError] = useState(null);
   const [useApi, setUseApi] = useState(true);
+
+  // Persisted road deadlines (set once at assignment time)
+  const [deadlineCache, setDeadlineCache] = useState(() => readDeadlineCache());
 
   // for grouped view
   const [groupedRows, setGroupedRows] = useState([]);
@@ -232,6 +312,8 @@ function Dashboard() {
           // Prefer assignment_status over location status (work_assignments is more current)
           status: mapBackendStatus(loc.assignment_status || loc.status),
           contractorId: loc.contractor_id ? String(loc.contractor_id) : null,
+          assignedAt: loc.assigned_at || null,
+          dueDate: loc.due_date || null,
           reportedTime: loc.last_reported_at ? new Date(loc.last_reported_at).toLocaleString(undefined, {
             month: "short", day: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit"
           }) : "--",
@@ -251,6 +333,8 @@ function Dashboard() {
             // Prefer assignment_status over location status
             status: mapBackendStatus(loc.assignment_status || loc.status),
             contractorId: loc.contractor_id ? String(loc.contractor_id) : null,
+            assignedAt: loc.assigned_at || null,
+            dueDate: loc.due_date || null,
             completedTime: loc.status === 'verified' || loc.status === 'fixed' 
               ? (loc.verified_at ? new Date(loc.verified_at).toLocaleString(undefined, {
                   month: "short", day: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit"
@@ -354,6 +438,55 @@ function Dashboard() {
     } catch (_) {}
   };
 
+  const setRoadDeadlineIfMissing = (roadKey, severity, itemsOrLocations = []) => {
+    if (!roadKey) return;
+    setDeadlineCache((prev) => {
+      const current = prev || {};
+      if (current[roadKey]?.deadlineAt) return current;
+
+      const assignedAt = new Date();
+      const deadlineDate = computeDeadlineFromAssignmentDate(assignedAt, severity);
+      const entry = {
+        assignedAt: assignedAt.toISOString(),
+        deadlineAt: deadlineDate ? deadlineDate.toISOString() : null,
+        severity,
+      };
+
+      const keys = (Array.isArray(itemsOrLocations) ? itemsOrLocations : [])
+        .flatMap(deadlineKeysForItem)
+        .filter(Boolean);
+
+      const next = {
+        ...current,
+        [roadKey]: entry,
+      };
+
+      for (const k of keys) {
+        if (!next[k]?.deadlineAt) next[k] = entry;
+      }
+
+      writeDeadlineCache(next);
+      return next;
+    });
+  };
+
+  const clearRoadDeadline = (roadKey, itemsOrLocations = []) => {
+    if (!roadKey) return;
+    setDeadlineCache((prev) => {
+      const current = prev || {};
+      const next = { ...current };
+      delete next[roadKey];
+
+      const keys = (Array.isArray(itemsOrLocations) ? itemsOrLocations : [])
+        .flatMap(deadlineKeysForItem)
+        .filter(Boolean);
+      for (const k of keys) delete next[k];
+
+      writeDeadlineCache(next);
+      return next;
+    });
+  };
+
   // Fetch road names + build grouped rows for potholes and patches
   useEffect(() => {
     const enrichAndGroup = async () => {
@@ -449,16 +582,38 @@ function Dashboard() {
           .map((r) => parseReportedDate(r.reportedTime))
           .filter(Boolean);
         let avgTimeStr = "--";
-        let avgReportedDate = null;
         if (dates.length) {
           const avgMs =
             dates.reduce((sum, d) => sum + d.getTime(), 0) / dates.length;
-          avgReportedDate = new Date(avgMs);
-          avgTimeStr = formatDate(avgReportedDate);
+          avgTimeStr = formatDate(new Date(avgMs));
         }
 
-        const deadlineDate = computeDeadlineFromAverageReportedDate(avgReportedDate, avgSeverity);
-        const deadlineStr = formatDate(deadlineDate);
+        // Prefer backend due date (stored in DB) so it survives refresh.
+        // Fallback to the persisted local cache if API doesn't provide due_date.
+        const dueDates = [...g.reports, ...g.patches]
+          .map((item) => parseBackendDate(item?.dueDate))
+          .filter(Boolean)
+          .sort((a, b) => a.getTime() - b.getTime());
+        const minDueDate = dueDates.length ? dueDates[0] : null;
+
+        // cached deadline is set at assignment time and persists until the road is verified/removed
+        const byRoad = deadlineCache?.[g.roadKey];
+        let cachedDeadlineAt = byRoad?.deadlineAt ?? null;
+        if (!cachedDeadlineAt) {
+          for (const item of [...g.reports, ...g.patches]) {
+            const keys = deadlineKeysForItem(item);
+            const hit = keys.map((k) => deadlineCache?.[k]).find((x) => x?.deadlineAt);
+            if (hit?.deadlineAt) {
+              cachedDeadlineAt = hit.deadlineAt;
+              break;
+            }
+          }
+        }
+        const deadlineStr = minDueDate
+          ? formatDate(minDueDate)
+          : cachedDeadlineAt
+            ? formatDate(new Date(cachedDeadlineAt))
+            : "--";
 
         // road‑level status: pick highest priority
         const roadStatus =
@@ -489,7 +644,7 @@ function Dashboard() {
     };
 
     enrichAndGroup();
-  }, [reports, patches]);
+  }, [reports, patches, deadlineCache]);
 
   // filters apply on grouped rows
   const filteredGroupedRows = useMemo(() => {
@@ -561,6 +716,9 @@ function Dashboard() {
     
     const report = getReportById(activeReportId);
     
+    let apiDueDate = null;
+    let apiAssignedAt = null;
+
     // Try to assign via public API endpoint if we have dbId
     if (report?.dbId && useApi) {
       try {
@@ -579,6 +737,9 @@ function Dashboard() {
         if (!response.ok) {
           console.warn('API assign failed, updating locally');
         } else {
+          const data = await response.json().catch(() => ({}));
+          apiDueDate = data?.dueDate || null;
+          apiAssignedAt = data?.assignedAt || null;
           console.log('Assignment saved to database');
         }
       } catch (error) {
@@ -587,11 +748,26 @@ function Dashboard() {
     }
     
     // Update local state
+    const assignedAt = apiAssignedAt || new Date().toISOString();
     const contractor = contractors.find((c) => c.id === selectedContractorId);
+
+    // Persist the road-level deadline once, right after assignment
+    const roadKey = (report?.roadName || "Unknown road");
+    const roadSeverity =
+      groupedRows.find((x) => x.roadKey === roadKey)?.avgSeverity ||
+      severityLabelFromCount(report?.severity_count);
+    setRoadDeadlineIfMissing(roadKey, roadSeverity, [report].filter(Boolean));
+
     setReports((prev) =>
       prev.map((r) =>
         r.id === activeReportId
-          ? { ...r, contractorId: selectedContractorId, status: "Assigned" }
+          ? {
+              ...r,
+              contractorId: selectedContractorId,
+              status: "Assigned",
+              assignedAt,
+              dueDate: apiDueDate || r.dueDate || null,
+            }
           : r
       )
     );
@@ -668,6 +844,14 @@ function Dashboard() {
       console.warn('Skipping API call - dbId:', r.dbId, 'useApi:', useApi);
     }
     
+    // Clear persisted deadline only if this verification removes the whole road row
+    const roadKey = (r.roadName || "Unknown road");
+    const remainingReports = getReportsForRoad(roadKey).filter((x) => x.id !== r.id);
+    const remainingPatches = getPatchesForRoad(roadKey);
+    if (remainingReports.length === 0 && remainingPatches.length === 0) {
+      clearRoadDeadline(roadKey, [...getReportsForRoad(roadKey), ...getPatchesForRoad(roadKey)]);
+    }
+
     setReports((prev) => prev.filter((x) => x.id !== r.id));
     pushToHistory(r);
     closeModal();
@@ -700,13 +884,29 @@ function Dashboard() {
     const unassignedPatches = roadPatches.filter((p) => !p.contractorId && p.status !== "Pending Verification");
     
     if (unassignedReports.length === 0 && unassignedPatches.length === 0) return;
+
+    // Persist the road-level deadline once, right after assignment
+    const roadSeverity =
+      groupedRows.find((x) => x.roadKey === batchRoadKey)?.avgSeverity || "Low";
+    setRoadDeadlineIfMissing(
+      batchRoadKey,
+      roadSeverity,
+      [...roadReports, ...roadPatches]
+    );
     
+    const dueDateByDbId = {};
     // Try batch assign via public API (assign each location individually)
     if (useApi) {
-      const locationsToAssign = unassignedReports.filter(r => r.dbId);
+      const locationsToAssign = [...unassignedReports, ...unassignedPatches]
+        .filter((x) => x?.dbId)
+        .reduce((acc, cur) => {
+          if (!acc.some((x) => x.dbId === cur.dbId)) acc.push(cur);
+          return acc;
+        }, []);
+
       for (const report of locationsToAssign) {
         try {
-          await fetch(`${API_BASE_URL}/reports/assignments`, {
+          const resp = await fetch(`${API_BASE_URL}/reports/assignments`, {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json'
@@ -717,6 +917,10 @@ function Dashboard() {
               notes: 'Batch assigned from admin dashboard'
             })
           });
+          if (resp.ok) {
+            const data = await resp.json().catch(() => ({}));
+            if (data?.dueDate) dueDateByDbId[String(report.dbId)] = data.dueDate;
+          }
         } catch (error) {
           console.error('Batch assign API error for location', report.dbId, ':', error);
         }
@@ -724,6 +928,7 @@ function Dashboard() {
       console.log(`Assigned ${locationsToAssign.length} locations to contractor`);
     }
     
+    const assignedAt = new Date().toISOString();
     const contractor = contractors.find((c) => c.id === batchContractorId);
     
     // Assign potholes
@@ -733,7 +938,9 @@ function Dashboard() {
           ? {
               ...r,
               contractorId: batchContractorId,
-              status: "Assigned"
+              status: "Assigned",
+              assignedAt,
+              dueDate: dueDateByDbId[String(r.dbId)] || r.dueDate || null,
             }
           : r
       )
@@ -746,7 +953,9 @@ function Dashboard() {
           ? {
               ...p,
               contractorId: batchContractorId,
-              status: "Assigned"
+              status: "Assigned",
+              assignedAt,
+              dueDate: dueDateByDbId[String(p.dbId)] || p.dueDate || null,
             }
           : p
       )
@@ -831,6 +1040,12 @@ function Dashboard() {
       } catch (_) {}
     });
     
+    // Once verified, the road row gets removed, so clear persisted deadline
+    clearRoadDeadline(
+      batchRoadKey,
+      [...pendingReports, ...pendingPatches]
+    );
+
     // Remove from reports and patches - this will trigger re-grouping
     setReports((prev) => {
       const filtered = prev.filter((r) => !pendingReports.some((pv) => pv.id === r.id));
