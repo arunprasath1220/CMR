@@ -24,6 +24,14 @@ const severityLabelFromCount = (count) => {
   return "Low";
 };
 
+// SLA (in days) from avg reported date to deadline
+// High severity => shortest deadline
+const DEADLINE_DAYS_BY_SEVERITY = {
+  High: 3,
+  Medium: 5,
+  Low: 7,
+};
+
 // 🔹 Helper: parse "lat, lon" string
 const parseLatLon = (locationStr) => {
   if (!locationStr) return null;
@@ -71,6 +79,37 @@ const formatDate = (date) => {
     hour: "2-digit",
     minute: "2-digit"
   });
+};
+
+const isWeekend = (date) => {
+  if (!date) return false;
+  const day = date.getDay();
+  return day === 0 || day === 6; // Sun=0, Sat=6
+};
+
+// Adds business days (Mon-Fri) to a date, preserving the time-of-day.
+const addBusinessDays = (startDate, businessDays) => {
+  if (!startDate) return null;
+  const ms = Number(startDate?.getTime?.());
+  if (!Number.isFinite(ms)) return null;
+
+  const daysToAdd = Number(businessDays);
+  if (!Number.isFinite(daysToAdd) || daysToAdd <= 0) return new Date(ms);
+
+  const result = new Date(ms);
+  let added = 0;
+  while (added < daysToAdd) {
+    result.setDate(result.getDate() + 1);
+    if (!isWeekend(result)) added += 1;
+  }
+  return result;
+};
+
+// 🔹 Helper: compute deadline date from avg reported date + severity SLA
+const computeDeadlineFromAverageReportedDate = (avgReportedDate, severity) => {
+  if (!avgReportedDate) return null;
+  const days = DEADLINE_DAYS_BY_SEVERITY[severity] ?? DEADLINE_DAYS_BY_SEVERITY.Low;
+  return addBusinessDays(avgReportedDate, days);
 };
 
 // 🔹 Helper: severity numeric weight for averaging
@@ -410,11 +449,16 @@ function Dashboard() {
           .map((r) => parseReportedDate(r.reportedTime))
           .filter(Boolean);
         let avgTimeStr = "--";
+        let avgReportedDate = null;
         if (dates.length) {
           const avgMs =
             dates.reduce((sum, d) => sum + d.getTime(), 0) / dates.length;
-          avgTimeStr = formatDate(new Date(avgMs));
+          avgReportedDate = new Date(avgMs);
+          avgTimeStr = formatDate(avgReportedDate);
         }
+
+        const deadlineDate = computeDeadlineFromAverageReportedDate(avgReportedDate, avgSeverity);
+        const deadlineStr = formatDate(deadlineDate);
 
         // road‑level status: pick highest priority
         const roadStatus =
@@ -434,6 +478,7 @@ function Dashboard() {
           numPatches,
           avgSeverity,
           avgReportedTime: avgTimeStr,
+          deadline: deadlineStr,
           status: roadStatus,
           reports: g.reports,
           patches: g.patches
@@ -954,6 +999,7 @@ function Dashboard() {
                   <th>Average Severity</th>
                   <th>Average Reported Time</th>
                   <th>Status</th>
+                  <th>Deadline</th>
                   <th>Action</th>
                 </tr>
               </thead>
@@ -983,6 +1029,7 @@ function Dashboard() {
                         {row.status}
                       </span>
                     </td>
+                    <td>{row.deadline}</td>
                     <td className="action-cell">
                       {(() => {
                         const action = getRoadAction(row.roadKey);
@@ -1030,7 +1077,7 @@ function Dashboard() {
                 {currentRows.length === 0 && (
                   <tr>
                     <td
-                      colSpan="8"
+                      colSpan="9"
                       style={{
                         textAlign: "center",
                         padding: "18px",
