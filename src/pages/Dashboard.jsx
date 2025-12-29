@@ -1671,7 +1671,7 @@ function Dashboard() {
 
               <div className="modal-section">
                 <label className="field-label">✅ Completed</label>
-                <div className="field-box">{proof?.completedAt || "--"}</div>
+                <div className="field-box">{firstPending?.completed_at || firstPending?.completedAt || "--"}</div>
               </div>
 
               <div className="modal-footer">
