@@ -267,6 +267,10 @@ function Dashboard() {
       'in_progress': 'In Progress',
       'pending_verification': 'Pending Verification',
       'verified': 'Verified',
+
+      // legacy/assignment statuses that may appear in API payloads
+      'fixed': 'Pending Verification',
+      'completed': 'Pending Verification',
     };
     return statusMap[status?.toLowerCase()] || 'Reported';
   };
@@ -348,15 +352,9 @@ function Dashboard() {
             totalPatchy: loc.total_patchy
           }));
         
-        // Exclude already verified items
-        let verifiedIds = new Set();
-        try {
-          const verified = JSON.parse(localStorage.getItem("verified_repairs") || "[]");
-          verifiedIds = new Set((Array.isArray(verified) ? verified : []).map((x) => x.id));
-        } catch (_) {}
-        
-        setReports(mappedReports.filter(r => !verifiedIds.has(r.id)));
-        setPatches(mappedPatches.filter(p => !verifiedIds.has(p.id)));
+        // Do not display Verified items in the dashboard table
+        setReports(mappedReports.filter((r) => r.status !== 'Verified'));
+        setPatches(mappedPatches.filter((p) => p.status !== 'Verified'));
         setUseApi(true);
         console.log('Loaded', mappedReports.length, 'locations and', mappedPatches.length, 'patches from API');
       } else {
@@ -391,17 +389,8 @@ function Dashboard() {
     const inProgressRoads = groupedRows.filter((row) => row.status === "In Progress").length;
     const pendingRoads = groupedRows.filter((row) => row.status === "Pending Verification").length;
 
-    // Verified roads: unique road names from localStorage entries
-    let verifiedRoads = 0;
-    try {
-      const verified = JSON.parse(localStorage.getItem("verified_repairs") || "[]");
-      const unique = new Set(
-        (Array.isArray(verified) ? verified : []).map((v) =>
-          (v.roadName && v.roadName.trim()) || (v.location || "").trim() || v.id
-        )
-      );
-      verifiedRoads = unique.size;
-    } catch (_) {}
+    // Verified roads are not displayed in this dashboard view
+    const verifiedRoads = 0;
 
     setSummary({
       reported: reportedRoads,
@@ -852,7 +841,9 @@ function Dashboard() {
       clearRoadDeadline(roadKey, [...getReportsForRoad(roadKey), ...getPatchesForRoad(roadKey)]);
     }
 
-    setReports((prev) => prev.filter((x) => x.id !== r.id));
+    // Remove from table after verification (do not display Verified rows)
+    setReports((prev) => prev.filter((x) => String(x.dbId) !== String(r.dbId)));
+    setPatches((prev) => prev.filter((x) => String(x.dbId) !== String(r.dbId)));
     pushToHistory(r);
     closeModal();
   };
@@ -1040,21 +1031,22 @@ function Dashboard() {
       } catch (_) {}
     });
     
-    // Once verified, the road row gets removed, so clear persisted deadline
+    // Clear deadline for this road once verified
     clearRoadDeadline(
       batchRoadKey,
       [...pendingReports, ...pendingPatches]
     );
 
-    // Remove from reports and patches - this will trigger re-grouping
-    setReports((prev) => {
-      const filtered = prev.filter((r) => !pendingReports.some((pv) => pv.id === r.id));
-      return filtered;
-    });
-    setPatches((prev) => {
-      const filtered = prev.filter((p) => !pendingPatches.some((pv) => pv.id === p.id));
-      return filtered;
-    });
+    // Remove from table after verification (do not display Verified rows)
+    const verifiedDbIds = new Set(
+      [...pendingReports, ...pendingPatches]
+        .map((x) => x.dbId)
+        .filter((x) => x != null)
+        .map((x) => String(x))
+    );
+
+    setReports((prev) => prev.filter((r) => !verifiedDbIds.has(String(r.dbId))));
+    setPatches((prev) => prev.filter((p) => !verifiedDbIds.has(String(p.dbId))));
     
     // Close modal and reset page if needed
     closeBatchModal();
