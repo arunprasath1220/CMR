@@ -308,7 +308,13 @@ function Dashboard() {
       
       // Map backend data to frontend format
       if (locationsData.locations && locationsData.locations.length > 0) {
-        const mappedReports = locationsData.locations.map((loc, index) => ({
+        // Requirement: if aggregated_locations.status is 'verified', it must not be visible in this dashboard
+        // (even if assignment_status is something else).
+        const visibleLocations = locationsData.locations.filter(
+          (loc) => String(loc?.status || '').toLowerCase() !== 'verified'
+        );
+
+        const mappedReports = visibleLocations.map((loc, index) => ({
           id: `PH-API-${loc.id || index}`,
           dbId: loc.id,
           location: `${loc.latitude}, ${loc.longitude}`,
@@ -318,6 +324,8 @@ function Dashboard() {
           contractorId: loc.contractor_id ? String(loc.contractor_id) : null,
           assignedAt: loc.assigned_at || null,
           dueDate: loc.due_date || null,
+          preWorkPhotoUrl: loc.pre_work_photo_url || null,
+          postWorkPhotoUrl: loc.post_work_photo_url || null,
           reportedTime: loc.last_reported_at ? new Date(loc.last_reported_at).toLocaleString(undefined, {
             month: "short", day: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit"
           }) : "--",
@@ -328,7 +336,7 @@ function Dashboard() {
         }));
         
         // Map patches from total_patchy field in each location
-        const mappedPatches = locationsData.locations
+        const mappedPatches = visibleLocations
           .filter(loc => loc.total_patchy > 0)
           .map((loc, index) => ({
             id: `PA-API-${loc.id || index}`,
@@ -339,6 +347,8 @@ function Dashboard() {
             contractorId: loc.contractor_id ? String(loc.contractor_id) : null,
             assignedAt: loc.assigned_at || null,
             dueDate: loc.due_date || null,
+            preWorkPhotoUrl: loc.pre_work_photo_url || null,
+            postWorkPhotoUrl: loc.post_work_photo_url || null,
             completedTime: loc.status === 'verified' || loc.status === 'fixed' 
               ? (loc.verified_at ? new Date(loc.verified_at).toLocaleString(undefined, {
                   month: "short", day: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit"
@@ -353,6 +363,7 @@ function Dashboard() {
           }));
         
         // Do not display Verified items in the dashboard table
+        // (Keep this as a second line of defense for legacy payloads/mapping.)
         setReports(mappedReports.filter((r) => r.status !== 'Verified'));
         setPatches(mappedPatches.filter((p) => p.status !== 'Verified'));
         setUseApi(true);
@@ -1570,9 +1581,46 @@ function Dashboard() {
                   {modalMode === "verify" ? (
                     <>
                       <div className="modal-section">
-                        <div className="field-box" style={{ textAlign: 'center', padding: '24px', color: '#6b7280' }}>
-                          No proof image available
-                        </div>
+                        {r?.preWorkPhotoUrl || r?.postWorkPhotoUrl ? (
+                          <div
+                            style={{
+                              display: 'grid',
+                              gap: '12px',
+                              maxHeight: '420px',
+                              overflowY: 'auto',
+                              paddingRight: '6px',
+                            }}
+                          >
+                            {r?.preWorkPhotoUrl && (
+                              <div className="field-box" style={{ textAlign: 'center', padding: '12px' }}>
+                                <div style={{ fontWeight: 600, marginBottom: '8px' }}>Pre-Work Photo</div>
+                                <a href={r.preWorkPhotoUrl} target="_blank" rel="noreferrer">
+                                  <img
+                                    src={r.preWorkPhotoUrl}
+                                    alt="Pre-work proof"
+                                    style={{ maxWidth: '100%', maxHeight: 320, borderRadius: 12 }}
+                                  />
+                                </a>
+                              </div>
+                            )}
+                            {r?.postWorkPhotoUrl && (
+                              <div className="field-box" style={{ textAlign: 'center', padding: '12px' }}>
+                                <div style={{ fontWeight: 600, marginBottom: '8px' }}>Post-Work Photo</div>
+                                <a href={r.postWorkPhotoUrl} target="_blank" rel="noreferrer">
+                                  <img
+                                    src={r.postWorkPhotoUrl}
+                                    alt="Post-work proof"
+                                    style={{ maxWidth: '100%', maxHeight: 320, borderRadius: 12 }}
+                                  />
+                                </a>
+                              </div>
+                            )}
+                          </div>
+                        ) : (
+                          <div className="field-box" style={{ textAlign: 'center', padding: '24px', color: '#6b7280' }}>
+                            No proof image available
+                          </div>
+                        )}
                       </div>
                       <div className="modal-grid">
                         <div>
