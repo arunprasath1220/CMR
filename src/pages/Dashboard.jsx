@@ -252,6 +252,7 @@ function Dashboard() {
   const [batchModalMode, setBatchModalMode] = useState(null); // 'assign' | 'verify'
   const [batchRoadKey, setBatchRoadKey] = useState(null);
   const [batchContractorId, setBatchContractorId] = useState("");
+  const [rejectRemarks, setRejectRemarks] = useState("");
 
   // Helper to get auth token
   const getAuthToken = () => localStorage.getItem('admin_token');
@@ -709,6 +710,7 @@ function Dashboard() {
   const closeModal = () => {
     setActiveReportId(null);
     setSelectedContractorId("");
+    setRejectRemarks("");
   };
 
   const doAssign = async () => {
@@ -856,6 +858,54 @@ function Dashboard() {
     setReports((prev) => prev.filter((x) => String(x.dbId) !== String(r.dbId)));
     setPatches((prev) => prev.filter((x) => String(x.dbId) !== String(r.dbId)));
     pushToHistory(r);
+    closeModal();
+  };
+
+  const doReject = async () => {
+    const r = getReportById(activeReportId);
+    if (!r?.dbId) return closeModal();
+
+    if (!rejectRemarks.trim()) {
+      alert('Please enter remarks before rejecting.');
+      return;
+    }
+
+    // Use public reject endpoint (mirrors public verify) so dashboard works without auth.
+    if (useApi) {
+      try {
+        const response = await fetch(`${API_BASE_URL}/reports/verify/${r.dbId}/reject`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ remarks: rejectRemarks.trim() }),
+        });
+
+        if (!response.ok) {
+          const data = await response.json().catch(() => ({}));
+          throw new Error(data?.message || 'Reject failed');
+        }
+      } catch (error) {
+        console.error('Reject API error:', error);
+        alert(error.message || 'Failed to reject verification');
+        return;
+      }
+    }
+
+    // Update local state: send task back to contractor as In Progress
+    setReports((prev) =>
+      prev.map((x) =>
+        String(x.dbId) === String(r.dbId)
+          ? { ...x, status: 'In Progress' }
+          : x
+      )
+    );
+    setPatches((prev) =>
+      prev.map((x) =>
+        String(x.dbId) === String(r.dbId)
+          ? { ...x, status: 'In Progress' }
+          : x
+      )
+    );
+
     closeModal();
   };
 
@@ -1586,9 +1636,6 @@ function Dashboard() {
                             style={{
                               display: 'grid',
                               gap: '12px',
-                              maxHeight: '420px',
-                              overflowY: 'auto',
-                              paddingRight: '6px',
                             }}
                           >
                             {r?.preWorkPhotoUrl && (
@@ -1621,6 +1668,17 @@ function Dashboard() {
                             No proof image available
                           </div>
                         )}
+                      </div>
+
+                      <div className="modal-section">
+                        <label className="field-label">Remarks (send back to contractor)</label>
+                        <textarea
+                          value={rejectRemarks}
+                          onChange={(e) => setRejectRemarks(e.target.value)}
+                          placeholder="Explain what needs to be fixed before verification..."
+                          className="modalInput"
+                          style={{ width: '100%', minHeight: 90 }}
+                        />
                       </div>
                       <div className="modal-grid">
                         <div>
@@ -1755,6 +1813,12 @@ function Dashboard() {
                           onClick={closeModal}
                         >
                           Close
+                        </button>
+                        <button
+                          className="btn-outline"
+                          onClick={doReject}
+                        >
+                          Reject
                         </button>
                         <button
                           className="btn-success"
