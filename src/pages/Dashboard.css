@@ -386,6 +386,9 @@
   border: 1px solid #e5e7eb;
   padding: 24px; /* more comfortable padding */
   box-shadow: 0 20px 48px rgba(0,0,0,0.18);
+  max-height: 88vh;
+  overflow-y: auto;
+  overflow-x: hidden;
 }
 
 /* Full-screen modal for road details */
@@ -422,11 +425,13 @@
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  margin-bottom: 12px;
-  position: sticky; /* keep header visible while scrolling */
-  top: 0;
+  margin: -24px -24px 12px -24px; /* pull into modal padding */
+  padding: 24px 24px 12px 24px;   /* restore spacing inside header */
+  position: sticky;
+  top: -24px; /* align with negative margin */
   background: #ffffff;
   z-index: 1;
+  border-bottom: 1px solid #e5e7eb;
 }
 /* Proof image and layout for Verify modal */
 .proof-img {
