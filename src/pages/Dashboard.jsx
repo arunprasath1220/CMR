@@ -43,8 +43,22 @@ const parseLatLon = (locationStr) => {
 };
 
 // 🔹 Nominatim reverse‑geocoding (road name)
-const fetchRoadName = async (lat, lon) => {
-  const url = `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lon}&format=jsonv2&zoom=16`;
+const districtFromNominatim = (data) => {
+  const a = data?.address || {};
+  return (
+    a.state_district ||
+    a.county ||
+    a.city_district ||
+    a.district ||
+    a.region ||
+    a.state ||
+    "Unknown"
+  );
+};
+
+// Fetch road + district in one reverse-geocode call.
+const fetchRoadDetails = async (lat, lon) => {
+  const url = `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lon}&format=jsonv2&zoom=16&addressdetails=1`;
   const res = await fetch(url, {
     headers: {
       "User-Agent": "PotholeDashboard/1.0 (your-email@example.com)"
@@ -52,14 +66,15 @@ const fetchRoadName = async (lat, lon) => {
   });
   if (!res.ok) throw new Error("Reverse geocoding failed");
   const data = await res.json();
-  return (
+  const roadName =
     data?.address?.road ||
     data?.address?.pedestrian ||
     data?.address?.footway ||
     data?.address?.neighbourhood ||
     data?.display_name ||
-    "Unknown road"
-  );
+    "Unknown road";
+  const district = districtFromNominatim(data);
+  return { roadName, district };
 };
 
 // 🔹 Helper: parse reported time string → Date
@@ -228,6 +243,7 @@ function Dashboard() {
   const [query, setQuery] = useState("");
   const [severityFilter, setSeverityFilter] = useState("All Severity");
   const [statusFilter, setStatusFilter] = useState("All Status");
+  const [districtFilter, setDistrictFilter] = useState("All Districts");
   const [activeReportId, setActiveReportId] = useState(null);
   const [modalMode, setModalMode] = useState("assign"); // 'assign' | 'view' | 'verify'
   const [selectedContractorId, setSelectedContractorId] = useState("");
@@ -235,6 +251,34 @@ function Dashboard() {
   const [isLoading, setIsLoading] = useState(true);
   const [apiError, setApiError] = useState(null);
   const [useApi, setUseApi] = useState(true);
+
+  // Persisted district cache (location/grid/db -> district name)
+  const readDistrictCache = () => {
+    try {
+      return JSON.parse(localStorage.getItem("district_cache_v1") || "{}");
+    } catch {
+      return {};
+    }
+  };
+  const writeDistrictCache = (obj) => {
+    try {
+      localStorage.setItem("district_cache_v1", JSON.stringify(obj || {}));
+    } catch {
+      // ignore
+    }
+  };
+  const districtKeyForItem = (item) => {
+    if (!item) return null;
+    const grid = (item.gridId || "").toString().trim();
+    if (grid) return `grid:${grid}`;
+    const db = item.dbId != null ? String(item.dbId).trim() : "";
+    if (db) return `db:${db}`;
+    const loc = (item.location || "").toString().trim();
+    if (loc) return `loc:${loc.toLowerCase().replace(/\s+/g, "")}`;
+    return null;
+  };
+
+  const [districtCache, setDistrictCache] = useState(() => readDistrictCache());
 
   // Persisted road deadlines (set once at assignment time)
   const [deadlineCache, setDeadlineCache] = useState(() => readDeadlineCache());
@@ -330,6 +374,9 @@ function Dashboard() {
             month: "short", day: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit"
           }) : "--",
           roadName: loc.road_name || "",
+          ward: loc.ward || "",
+          // backend doesn't currently send district; we will enrich via reverse-geocoding when missing
+          district: loc.district || loc.state_district || "",
           gridId: loc.grid_id,
           totalPotholes: loc.total_potholes,
           totalPatchy: loc.total_patchy
@@ -358,6 +405,8 @@ function Dashboard() {
               month: "short", day: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit"
             }) : "--",
             roadName: loc.road_name || "",
+            ward: loc.ward || "",
+            district: loc.district || loc.state_district || "",
             gridId: loc.grid_id,
             totalPatchy: loc.total_patchy
           }));
@@ -496,48 +545,74 @@ function Dashboard() {
       let updatedPatches = patches;
 
       const roadCache = readRoadCache();
+      const localDistrictCache = { ...(districtCache || {}) };
 
-      const reportNeeds = reports.some((r) => !r.roadName);
-      const patchNeeds = patches.some((p) => !p.roadName);
+      const reportNeeds = reports.some((r) => !r.roadName || !r.district);
+      const patchNeeds = patches.some((p) => !p.roadName || !p.district);
 
       if (reportNeeds || patchNeeds) {
         setLoadingRoads(true);
         try {
-          const resolveOne = async (loc) => {
-            const key = (loc || "").trim();
-            if (roadCache[key]) return roadCache[key];
-            const coords = parseLatLon(key);
-            if (!coords) return "Unknown road";
+          const resolveOne = async (item) => {
+            const loc = (item?.location || "").trim();
+            const locKey = loc;
+
+            const cachedRoad = locKey ? roadCache[locKey] : null;
+            const dk = districtKeyForItem(item) || (locKey ? `loc:${locKey.toLowerCase().replace(/\s+/g, "")}` : null);
+            const cachedDistrict = dk ? localDistrictCache[dk] : null;
+
+            if (cachedRoad && cachedDistrict) return { roadName: cachedRoad, district: cachedDistrict };
+
+            const coords = parseLatLon(locKey);
+            if (!coords) return { roadName: cachedRoad || "Unknown road", district: cachedDistrict || "Unknown" };
             try {
-              const name = await fetchRoadName(coords.lat, coords.lon);
-              roadCache[key] = name;
-              writeRoadCache(roadCache);
+              const details = await fetchRoadDetails(coords.lat, coords.lon);
+              const rn = details?.roadName || cachedRoad || "Unknown road";
+              const dist = details?.district || cachedDistrict || "Unknown";
+
+              if (locKey && rn) {
+                roadCache[locKey] = rn;
+                writeRoadCache(roadCache);
+              }
+              if (dk && dist) {
+                localDistrictCache[dk] = dist;
+                writeDistrictCache(localDistrictCache);
+              }
+
               // small delay to be polite to the API
               await new Promise((res) => setTimeout(res, 250));
-              return name;
-            } catch (_) {
-              return "Unknown road";
+              return { roadName: rn, district: dist };
+            } catch {
+              return { roadName: cachedRoad || "Unknown road", district: cachedDistrict || "Unknown" };
             }
           };
 
           // sequentially enrich to control rate
           const rep = [];
           for (const r of reports) {
-            if (r.roadName) {
+            if (r.roadName && r.district) {
               rep.push(r);
-            } else {
-              const name = await resolveOne(r.location);
-              rep.push({ ...r, roadName: name });
+              continue;
             }
+            const resolved = await resolveOne(r);
+            rep.push({
+              ...r,
+              roadName: r.roadName || resolved.roadName,
+              district: r.district || resolved.district,
+            });
           }
           const pat = [];
           for (const p of patches) {
-            if (p.roadName) {
+            if (p.roadName && p.district) {
               pat.push(p);
-            } else {
-              const name = await resolveOne(p.location);
-              pat.push({ ...p, roadName: name });
+              continue;
             }
+            const resolved = await resolveOne(p);
+            pat.push({
+              ...p,
+              roadName: p.roadName || resolved.roadName,
+              district: p.district || resolved.district,
+            });
           }
           updatedReports = rep;
           updatedPatches = pat;
@@ -546,18 +621,25 @@ function Dashboard() {
         }
         setReports(updatedReports);
         setPatches(updatedPatches);
+        setDistrictCache(localDistrictCache);
       }
 
       // group potholes and patches by roadName
       const groups = {};
       for (const r of updatedReports) {
         const key = r.roadName || "Unknown road";
-        if (!groups[key]) groups[key] = { roadKey: key, roadName: key, reports: [], patches: [] };
+        if (!groups[key]) {
+          const district = (r.district || r.ward || "Unknown").trim() || "Unknown";
+          groups[key] = { roadKey: key, roadName: key, district, reports: [], patches: [] };
+        }
         groups[key].reports.push(r);
       }
       for (const p of updatedPatches) {
         const key = p.roadName || "Unknown road";
-        if (!groups[key]) groups[key] = { roadKey: key, roadName: key, reports: [], patches: [] };
+        if (!groups[key]) {
+          const district = (p.district || p.ward || "Unknown").trim() || "Unknown";
+          groups[key] = { roadKey: key, roadName: key, district, reports: [], patches: [] };
+        }
         groups[key].patches.push(p);
       }
 
@@ -629,6 +711,7 @@ function Dashboard() {
           id: `RD-${index + 1}`, // road ID; change if needed
           roadKey: g.roadKey,
           roadName: g.roadName,
+          district: g.district || "Unknown",
           numPotholes,
           numPatches,
           avgSeverity,
@@ -656,14 +739,26 @@ function Dashboard() {
         row.id.toLowerCase().includes(q) ||
         row.roadName.toLowerCase().includes(q) ||
         row.status.toLowerCase().includes(q) ||
-        sev.toLowerCase().includes(q);
+        sev.toLowerCase().includes(q) ||
+        (row.district || "").toLowerCase().includes(q);
       const matchSeverity =
         severityFilter === "All Severity" || sev === severityFilter;
       const matchStatus =
         statusFilter === "All Status" || row.status === statusFilter;
-      return matchQuery && matchSeverity && matchStatus;
+      const matchDistrict =
+        districtFilter === "All Districts" || (row.district || "Unknown") === districtFilter;
+      return matchQuery && matchSeverity && matchStatus && matchDistrict;
     });
-  }, [groupedRows, query, severityFilter, statusFilter]);
+  }, [groupedRows, query, severityFilter, statusFilter, districtFilter]);
+
+  const availableDistricts = useMemo(() => {
+    const set = new Set();
+    for (const row of groupedRows) {
+      const d = (row.district || "Unknown").trim() || "Unknown";
+      set.add(d);
+    }
+    return Array.from(set).sort((a, b) => a.localeCompare(b));
+  }, [groupedRows]);
 
   const totalPages = Math.max(1, Math.ceil(filteredGroupedRows.length / pageSize));
   const currentRows = useMemo(() => {
@@ -1184,6 +1279,17 @@ function Dashboard() {
                 onChange={(e) => setQuery(e.target.value)}
               />
               <select
+                value={districtFilter}
+                onChange={(e) => setDistrictFilter(e.target.value)}
+              >
+                <option>All Districts</option>
+                {availableDistricts.map((d) => (
+                  <option key={d} value={d}>
+                    {d}
+                  </option>
+                ))}
+              </select>
+              <select
                 value={severityFilter}
                 onChange={(e) => setSeverityFilter(e.target.value)}
               >
@@ -1212,6 +1318,7 @@ function Dashboard() {
                 <tr>
                   <th>ID</th>
                   <th>Road Name</th>
+                  <th>District</th>
                   <th>No. of Potholes</th>
                   <th>No. of Patches</th>
                   <th>Average Severity</th>
@@ -1234,6 +1341,7 @@ function Dashboard() {
                   >
                     <td>{row.id}</td>
                     <td>{row.roadName}</td>
+                    <td>{row.district || "Unknown"}</td>
                     <td>{row.numPotholes}</td>
                     <td>{row.numPatches}</td>
                     <td>
@@ -1275,19 +1383,18 @@ function Dashboard() {
                               Assign All
                             </button>
                           );
-                        } else {
-                          return (
-                            <button
-                              className="btn-outline"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                openViewRoad(row.roadKey);
-                              }}
-                            >
-                              View Details
-                            </button>
-                          );
                         }
+                        return (
+                          <button
+                            className="btn-outline"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              openViewRoad(row.roadKey);
+                            }}
+                          >
+                            View Details
+                          </button>
+                        );
                       })()}
                     </td>
                   </tr>
@@ -1295,7 +1402,7 @@ function Dashboard() {
                 {currentRows.length === 0 && (
                   <tr>
                     <td
-                      colSpan="9"
+                      colSpan="10"
                       style={{
                         textAlign: "center",
                         padding: "18px",

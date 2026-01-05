@@ -8,14 +8,14 @@ import "./Graph.css";
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 
 /* 🔹 DUMMY DATA with real latitude/longitude coordinates (fallback) */
-const DUMMY_POINTS = [
-  { id: 1, lat: 8.4207098, lng: 78.0309535, severity: "critical", status: "open", ward: "North", date: "2025-12-10" },
-  { id: 2, lat: 13.0500, lng: 80.2500, severity: "critical", status: "open", ward: "South", date: "2025-12-12" },
-  { id: 3, lat: 13.0900, lng: 80.2900, severity: "medium",   status: "in-progress", ward: "East",  date: "2025-12-09" },
-  { id: 4, lat: 13.0650, lng: 80.2200, severity: "medium",   status: "in-progress", ward: "West",  date: "2025-12-15" },
-  { id: 5, lat: 13.0700, lng: 80.2600, severity: "fixed",    status: "resolved",    ward: "Central", date: "2025-12-08" },
-  { id: 6, lat: 13.0950, lng: 80.2450, severity: "critical", status: "open",        ward: "Central", date: "2025-12-14" },
-];
+// const DUMMY_POINTS = [
+//   { id: 1, lat: 8.4207098, lng: 78.0309535, severity: "critical", status: "open", ward: "North", date: "2025-12-10" },
+//   { id: 2, lat: 13.0500, lng: 80.2500, severity: "critical", status: "open", ward: "South", date: "2025-12-12" },
+//   { id: 3, lat: 13.0900, lng: 80.2900, severity: "medium",   status: "in-progress", ward: "East",  date: "2025-12-09" },
+//   { id: 4, lat: 13.0650, lng: 80.2200, severity: "medium",   status: "in-progress", ward: "West",  date: "2025-12-15" },
+//   { id: 5, lat: 13.0700, lng: 80.2600, severity: "fixed",    status: "resolved",    ward: "Central", date: "2025-12-08" },
+//   { id: 6, lat: 13.0950, lng: 80.2450, severity: "critical", status: "open",        ward: "Central", date: "2025-12-14" },
+// ];
 
 // Helper to map backend data to frontend format
 const mapBackendToFrontend = (location) => {

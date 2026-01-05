@@ -237,6 +237,24 @@
   background: #fafbfc;
 }
 
+/* District group row for large datasets */
+.district-row td {
+  background: #f3f4ff;
+  border-top: 1px solid #e5e7eb;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.district-name {
+  font-weight: 600;
+  color: #111827;
+  margin-right: 8px;
+}
+
+.district-meta {
+  font-size: 12px;
+  color: #4b5563;
+}
+
 /* ========== Severity Pills ========== */
 .pill-danger,
 .pill-warning,
